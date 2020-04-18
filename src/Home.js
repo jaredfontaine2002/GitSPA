@@ -31,7 +31,7 @@ class Home extends Component {
 
       {user == null && (
           <span>
-              <Link to="/register" className="btn btn-outline-primary mr-2">
+              <Link to="/Register" className="btn btn-outline-primary mr-2">
             Register
                 </Link>
                 <Link to="/login" className="btn btn-outline-primary mr-2">
@@ -40,7 +40,7 @@ class Home extends Component {
             </span>
       )}
         {user && (
-            <Link to="/meetings" className="btn btn-primary">
+            <Link to="/Meetings" className="btn btn-primary">
                 Meetings
             </Link>
         )}

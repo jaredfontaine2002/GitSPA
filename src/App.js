@@ -1,6 +1,6 @@
 // Import React
 import React, { Component } from 'react';
-import {Router} from '@reach/router';
+import {Router, navigate} from '@reach/router';
 import firebase from'./Firebase';
 
 import Home from './Home';
@@ -9,38 +9,126 @@ import Nav from './Nav';
 import Login from './Login';
 import Register from './Register';
 import Meetings from './Meetings';
-
+import Checkin from './Checkin';
+import Attendees from './Attendees';
 
 
 class App extends Component {
   constructor() {
     super();
       this.state = {
-        user: null
+        user: null,
+        displayName: null,
+        userID: null
       };
   }
 
   componentDidMount() {
-    const ref = firebase.database().ref('user');
+    firebase.auth().onAuthStateChanged(FBUser => {
+      if(FBUser) {
+        this.setState({
+          user: FBUser,
+          displayName: FBUser.displayName,
+          userID: FBUser.uid 
+        });
+     
+        const meetingsRef = firebase
+        .database()
+        .ref('meetings/' + FBUser.uid);
+     
+        meetingsRef.on('value', snapshot => {  
+          let meetings = snapshot.val();
+          let meetingsList = [];
 
-    ref.on('value', snapshot => {
-      let FBUser = snapshot.val();
-      this.setState({ user: FBUser });
+          for(let item in meetings)  {
+            meetingsList.push({
+            meetingID: item,
+            meetingName: meetings[item].meetingName
+          });
+        }
+
+        this.setState({
+          meetings: meetingsList,
+          howManyMeetings: meetingsList.length
+        });
+      });  
+    } else {
+        this.setState({ user: null });
+      }
     });
-
   }
+
+  registerUser = userName => {
+    firebase.auth().onAuthStateChanged(FBUser => {
+      FBUser.updateProfile({
+        displayName: userName
+      }).then(() => {
+        this.setState({
+          user: FBUser,
+          displayName: FBUser.displayName,
+          userID: FBUser.uid
+        });
+        navigate('/meetings');
+      });
+    });
+  };
+
+  logOutUser = e => {
+    e.preventDefault();
+    this.setState({
+      displayName: null,
+      userID: null,
+      user: null
+    });
+    firebase
+    .auth()
+    .signOut()
+    .then(() => {
+      navigate('/Login');
+    });
+  };
+
+  addMeeting = meetingName => {
+    const ref = firebase
+      .database()
+      .ref(`meetings/${this.state.user.uid}`);
+    ref.push({ meetingName: meetingName });
+  };
+
   render() {
     return (
       <div>
-        <Nav user={this.state.user} />
-        {this.state.user && <Welcome user={this.state.user}/>}
+        <Nav 
+        user={this.state.user} 
+        logOutUser={this.logOutUser} 
+        />
+        {this.state.user && (
+          <Welcome
+           userName={this.state.displayName}
+           logOutUser = {this.logOutUser}
+        />
+        )}
+        
         <Router>
         <Home path="/" user={this.state.user}/>
-        <Login path="/Login" />
-        <Meetings path="/Meetings" />
-        <Register path="/Register" />
+        <Login path="/login" />
+        <Meetings 
+           path="/Meetings" 
+           meetings={this.state.meetings}
+           addMeeting={this.addMeeting}
+           userID={this.state.userID} 
+        />
+        <Attendees 
+           path="/Attendees/:userID/:meetingID" 
+           adminUser={this.state.userID}
+        />
+        <Checkin path='/Checkin/:userID/:meetingID'/>
+        <Register
+         path="/Register" 
+         registerUser={this.registerUser}
+        />
         </Router>
-        
+  
         </div>
    
   );
